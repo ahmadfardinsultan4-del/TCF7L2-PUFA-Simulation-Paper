@@ -1,0 +1,39 @@
+import numpy as np
+import matplotlib.pyplot as plt
+
+np.random.seed(1)
+time = np.linspace(0, 12, 240)  # 0–12 hours, fine resolution
+
+def sigmoid(x, center, slope=2):
+    return 1 / (1 + np.exp(-slope * (x - center)))
+
+# n-6 PUFA: early rise, saturates
+n6 = 0.4 + 0.35 * (1 - np.exp(-0.25 * time))
+
+# n-3 PUFA: delayed rise, eventually surpasses n-6
+n3 = 0.3 + 0.5 * sigmoid(time, center=7, slope=1.5)
+n3 = np.clip(n3, 0, 1.0)
+
+# TCF7L2 dynamics
+baseline = 0.7
+tcf7l2 = baseline + 0.6 * (1 - np.exp(-0.18 * time))       # n-6 effect
+tcf7l2 -= 0.35 * sigmoid(time, center=7, slope=1.5)        # n-3 delayed suppression
+tcf7l2 = np.clip(tcf7l2, 0.65, 1.0)
+tcf7l2 += np.random.normal(0, 0.01, len(time))
+
+# Insulin inversely related
+insulin = 1.05 - 0.65 * (tcf7l2 - 0.65)
+insulin = np.clip(insulin, 0.4, 1.0)
+insulin += np.random.normal(0, 0.01, len(time))
+
+# Plot
+plt.plot(time, n6, label="n-6 PUFA")
+plt.plot(time, n3, label="n-3 PUFA")
+plt.plot(time, tcf7l2, label="TCF7L2 activity")
+plt.plot(time, insulin, label="Insulin capacity")
+plt.xlabel("Time (hours)")
+plt.ylabel("Relative activity (normalized)")
+plt.title("Experiment 3: n-3 PUFA Dominance Reverses n-6 Dysregulation")
+plt.legend()
+plt.ylim(0.3, 1.0)
+plt.show()
