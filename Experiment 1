@@ -1,0 +1,35 @@
+import numpy as np
+import matplotlib.pyplot as plt
+
+np.random.seed(1)
+time = np.linspace(0, 12, 240)  # 0–12 hours
+
+# n-6 PUFA: exponential rise from 0.40 to 0.78
+n6 = 0.40 + (0.78 - 0.40) * (1 - np.exp(-0.25 * time))
+
+# TCF7L2 rises due to n-6: 0.60 → 1.00
+tcf7l2 = 0.60 + (1.00 - 0.60) * (1 - np.exp(-0.15 * time))
+
+# Insulin inversely related: 1.00 → 0.45
+insulin = 1.00 - (1.00 - 0.45) * (tcf7l2 - 0.60) / (1.00 - 0.60)  # linear inverse scaling
+
+# Add small noise for realism
+tcf7l2 += np.random.normal(0, 0.01, len(time))
+tcf7l2 = np.clip(tcf7l2, 0.60, 1.0)
+
+insulin += np.random.normal(0, 0.01, len(time))
+insulin = np.clip(insulin, 0.45, 1.0)
+
+# Plot
+plt.figure(figsize=(8,5))
+plt.plot(time, n6, label="n-6 PUFA", linewidth=2)
+plt.plot(time, tcf7l2, label="TCF7L2 activity", linewidth=2)
+plt.plot(time, insulin, label="Insulin capacity", linewidth=2)
+plt.xlabel("Time (hours)")
+plt.ylabel("Relative activity (normalized)")
+plt.title("Experiment 1 — n-6 PUFA Exposure")
+plt.legend()
+plt.ylim(0.35, 1.05)
+plt.grid(True, linestyle='--', alpha=0.5)
+plt.tight_layout()
+plt.show()
