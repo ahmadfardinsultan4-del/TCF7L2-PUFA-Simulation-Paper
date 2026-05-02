@@ -2,34 +2,101 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 np.random.seed(1)
-time = np.linspace(0, 12, 240)  # 0–12 hours
+time = np.linspace(0, 12, 240)
 
-# n-6 PUFA: exponential rise from 0.40 to 0.78
-n6 = 0.40 + (0.78 - 0.40) * (1 - np.exp(-0.25 * time))
+# -----------------------
+# STYLE (JEI CONSISTENT)
+# -----------------------
+plt.rcParams.update({
+    "font.family": "DejaVu Sans",
+    "font.size": 16,
+    "axes.labelsize": 18,
+    "axes.labelweight": "bold",
+    "xtick.labelsize": 16,
+    "ytick.labelsize": 16,
+    "legend.fontsize": 14
+})
 
-# TCF7L2 rises due to n-6: 0.60 → 1.00
-tcf7l2 = 0.60 + (1.00 - 0.60) * (1 - np.exp(-0.15 * time))
+# -----------------------
+# STORAGE (30 runs)
+# -----------------------
+all_n6 = []
+all_tcf7l2 = []
+all_insulin = []
 
-# Insulin inversely related: 1.00 → 0.45
-insulin = 1.00 - (1.00 - 0.45) * (tcf7l2 - 0.60) / (1.00 - 0.60)  # linear inverse scaling
+# -----------------------
+# SIMULATION FUNCTION
+# -----------------------
+for seed in range(30):
+    np.random.seed(seed)
 
-# Add small noise for realism
-tcf7l2 += np.random.normal(0, 0.01, len(time))
-tcf7l2 = np.clip(tcf7l2, 0.60, 1.0)
+    # n-6 PUFA (early inflammatory rise)
+    n6 = 0.40 + (0.78 - 0.40) * (1 - np.exp(-0.25 * time))
 
-insulin += np.random.normal(0, 0.01, len(time))
-insulin = np.clip(insulin, 0.45, 1.0)
+    # TCF7L2 activation from n-6
+    tcf7l2 = 0.60 + (1.00 - 0.60) * (1 - np.exp(-0.15 * time))
 
-# Plot
-plt.figure(figsize=(8,5))
-plt.plot(time, n6, label="n-6 PUFA", linewidth=2)
-plt.plot(time, tcf7l2, label="TCF7L2 activity", linewidth=2)
-plt.plot(time, insulin, label="Insulin capacity", linewidth=2)
-plt.xlabel("Time (hours)")
-plt.ylabel("Relative activity (normalized)")
-plt.title("Experiment 1 — n-6 PUFA Exposure")
-plt.legend()
+    # insulin suppression (inverse relationship)
+    insulin = 1.00 - (1.00 - 0.45) * (tcf7l2 - 0.60) / (1.00 - 0.60)
+
+    # noise
+    tcf7l2 += np.random.normal(0, 0.01, len(time))
+    insulin += np.random.normal(0, 0.01, len(time))
+
+    tcf7l2 = np.clip(tcf7l2, 0.60, 1.0)
+    insulin = np.clip(insulin, 0.45, 1.0)
+
+    all_n6.append(n6)
+    all_tcf7l2.append(tcf7l2)
+    all_insulin.append(insulin)
+
+# -----------------------
+# CONVERT
+# -----------------------
+all_n6 = np.array(all_n6)
+all_tcf7l2 = np.array(all_tcf7l2)
+all_insulin = np.array(all_insulin)
+
+mean_n6 = np.mean(all_n6, axis=0)
+std_n6 = np.std(all_n6, axis=0)
+
+mean_tcf7l2 = np.mean(all_tcf7l2, axis=0)
+std_tcf7l2 = np.std(all_tcf7l2, axis=0)
+
+mean_insulin = np.mean(all_insulin, axis=0)
+std_insulin = np.std(all_insulin, axis=0)
+
+# -----------------------
+# PLOT
+# -----------------------
+plt.figure(figsize=(14, 18), constrained_layout=True)
+
+plt.errorbar(time, mean_n6, yerr=std_n6,
+             label="n-6 PUFA", fmt='-', capsize=2, linewidth=2)
+
+plt.errorbar(time, mean_tcf7l2, yerr=std_tcf7l2,
+             label=r"$\mathit{\mathbf{TCF7L2}}$ activity",
+             fmt='-', capsize=2, linewidth=2)
+
+plt.errorbar(time, mean_insulin, yerr=std_insulin,
+             label="Insulin capacity", fmt='-', capsize=2, linewidth=2)
+
+# -----------------------
+# AXES
+# -----------------------
+plt.xlabel("Time (hours)", fontsize=18, fontweight="bold")
+plt.ylabel("Relative activity (normalized)", fontsize=18, fontweight="bold")
+
+plt.xticks(fontsize=16, fontweight="bold")
+plt.yticks(fontsize=16, fontweight="bold")
+
+# LEGEND (bold)
+leg = plt.legend(prop={"size": 14})
+for text in leg.get_texts():
+    text.set_fontweight("bold")
+
+plt.grid(True, linestyle="--", alpha=0.5)
+
 plt.ylim(0.35, 1.05)
-plt.grid(True, linestyle='--', alpha=0.5)
-plt.tight_layout()
+
 plt.show()
