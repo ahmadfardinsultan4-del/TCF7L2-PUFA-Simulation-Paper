@@ -1,12 +1,10 @@
 import numpy as np
 import matplotlib.pyplot as plt
+from scipy.stats import ttest_ind
 
 np.random.seed(1)
 time = np.linspace(0, 12, 240)
 
-# -----------------------
-# STYLE (JEI)
-# -----------------------
 plt.rcParams.update({
     "font.family": "DejaVu Sans",
     "font.size": 16,
@@ -21,7 +19,7 @@ def sigmoid(x, center, slope=2):
     return 1 / (1 + np.exp(-slope * (x - center)))
 
 # -----------------------
-# STORAGE (30 runs)
+# STORAGE
 # -----------------------
 all_n6 = []
 all_n3 = []
@@ -29,98 +27,72 @@ all_tcf7l2 = []
 all_insulin = []
 
 # -----------------------
-# SIMULATIONS
+# SIMULATION
 # -----------------------
 for seed in range(30):
     np.random.seed(seed)
 
-    # n-6 PUFA (early rise)
     n6 = 0.4 + 0.35 * (1 - np.exp(-0.25 * time))
 
-    # n-3 PUFA (delayed rise)
     n3 = 0.3 + 0.5 * sigmoid(time, center=7, slope=1.5)
     n3 = np.clip(n3, 0, 1.0)
 
-    # TCF7L2 dynamics
     baseline = 0.7
     tcf7l2 = baseline + 0.6 * (1 - np.exp(-0.18 * time))
     tcf7l2 -= 0.35 * sigmoid(time, center=7, slope=1.5)
-
     tcf7l2 = np.clip(tcf7l2, 0.65, 1.0)
 
-    # insulin response
     insulin = 1.05 - 0.65 * (tcf7l2 - 0.65)
     insulin = np.clip(insulin, 0.4, 1.0)
 
-    # noise
-    tcf7l2 += np.random.normal(0, 0.01, len(time))
-    insulin += np.random.normal(0, 0.01, len(time))
+    tcf7l2 += np.random.normal(0, 0.03, len(time))
+    insulin += np.random.normal(0, 0.03, len(time))
 
     all_n6.append(n6)
     all_n3.append(n3)
     all_tcf7l2.append(tcf7l2)
     all_insulin.append(insulin)
 
-# -----------------------
-# CONVERT TO ARRAYS
-# -----------------------
 all_n6 = np.array(all_n6)
 all_n3 = np.array(all_n3)
 all_tcf7l2 = np.array(all_tcf7l2)
 all_insulin = np.array(all_insulin)
 
-# MEAN + STD
-mean_n6 = np.mean(all_n6, axis=0)
-std_n6 = np.std(all_n6, axis=0)
+# -----------------------
+# T-TEST
+# -----------------------
+early = all_tcf7l2[:, :120].flatten()
+late  = all_tcf7l2[:, 120:].flatten()
 
-mean_n3 = np.mean(all_n3, axis=0)
-std_n3 = np.std(all_n3, axis=0)
+t_stat, p_value = ttest_ind(early, late)
 
-mean_tcf7l2 = np.mean(all_tcf7l2, axis=0)
-std_tcf7l2 = np.std(all_tcf7l2, axis=0)
-
-mean_insulin = np.mean(all_insulin, axis=0)
-std_insulin = np.std(all_insulin, axis=0)
+print(f"T-statistic: {t_stat:.3f}")
+print(f"P-value: {p_value:.4f}")
 
 # -----------------------
-# PLOT (JEI MULTI-SYSTEM FIGURE)
+# PLOT
 # -----------------------
-plt.figure(figsize=(14, 18), constrained_layout=True)
+plt.figure(figsize=(14, 7))
 
-# n-6
-plt.errorbar(time, mean_n6, yerr=std_n6,
-             label="n-6 PUFA", fmt='-', capsize=2, linewidth=2)
+plt.plot(time, np.mean(all_n6, axis=0), label="n-6 PUFA")
+plt.plot(time, np.mean(all_n3, axis=0), label="n-3 PUFA")
 
-# n-3
-plt.errorbar(time, mean_n3, yerr=std_n3,
-             label="n-3 PUFA", fmt='-', capsize=2, linewidth=2)
+plt.errorbar(time, np.mean(all_tcf7l2, axis=0),
+             yerr=np.std(all_tcf7l2, axis=0),
+             label=r"$\bf{\it{TCF7L2}}$ activity",
+             fmt='-', capsize=2)
 
-# TCF7L2 (bold + italic)
-plt.errorbar(time, mean_tcf7l2, yerr=std_tcf7l2,
-             label=r"$\mathit{\mathbf{TCF7L2}}$ activity",
-             fmt='-', capsize=2, linewidth=2)
+plt.errorbar(time, np.mean(all_insulin, axis=0),
+             yerr=np.std(all_insulin, axis=0),
+             label="Insulin capacity",
+             fmt='-', capsize=2)
 
-# insulin
-plt.errorbar(time, mean_insulin, yerr=std_insulin,
-             label="Insulin capacity", fmt='-', capsize=2, linewidth=2)
-
-# -----------------------
-# AXES
-# -----------------------
 plt.xlabel("Time (hours)", fontsize=18, fontweight="bold")
 plt.ylabel("Relative activity (normalized)", fontsize=18, fontweight="bold")
 
-plt.xticks(fontsize=16, fontweight="bold")
-plt.yticks(fontsize=16, fontweight="bold")
+plt.legend()
+leg = plt.legend()
 
-# LEGEND (bold)
-leg = plt.legend(prop={"size": 14})
 for text in leg.get_texts():
     text.set_fontweight("bold")
-
-# GRID
-plt.grid(True, linestyle="--", alpha=0.5)
-
-plt.ylim(0.3, 1.05)
-
 plt.show()
