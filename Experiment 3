@@ -6,7 +6,7 @@ np.random.seed(1)
 time = np.linspace(0, 12, 240)
 
 plt.rcParams.update({
-    "font.family": "DejaVu Sans",
+    "font.family": "Arial",
     "font.size": 16,
     "axes.labelsize": 18,
     "axes.labelweight": "bold",
@@ -79,7 +79,7 @@ plt.plot(time, np.mean(all_n3, axis=0), label="n-3 PUFA")
 
 plt.errorbar(time, np.mean(all_tcf7l2, axis=0),
              yerr=np.std(all_tcf7l2, axis=0),
-             label=r"$\bf{\it{TCF7L2}}$ activity",
+             label="TCF7L2 Activity",
              fmt='-', capsize=2)
 
 plt.errorbar(time, np.mean(all_insulin, axis=0),
@@ -91,8 +91,12 @@ plt.xlabel("Time (hours)", fontsize=18, fontweight="bold")
 plt.ylabel("Relative activity (normalized)", fontsize=18, fontweight="bold")
 
 plt.legend()
-leg = plt.legend()
+
+leg = plt.legend(prop={"size": 14})
 
 for text in leg.get_texts():
-    text.set_fontweight("bold")
+    if "TCF7L2" in text.get_text():
+        text.set_fontstyle("italic")   # gene rule
+    text.set_fontweight("bold")        # JEI bold rule
+
 plt.show()
