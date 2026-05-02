@@ -2,6 +2,9 @@ import numpy as np
 import matplotlib.pyplot as plt
 from scipy.stats import ttest_ind
 
+# -----------------------
+# SETUP
+# -----------------------
 np.random.seed(1)
 time = np.linspace(0, 12, 240)
 
@@ -26,77 +29,122 @@ all_n3 = []
 all_tcf7l2 = []
 all_insulin = []
 
+# for t-test groups
+all_tcf7l2_n6 = []
+all_tcf7l2_combined = []
+
 # -----------------------
-# SIMULATION
+# SIMULATION (30 RUNS)
 # -----------------------
 for seed in range(30):
     np.random.seed(seed)
 
+    # PUFA dynamics
     n6 = 0.4 + 0.35 * (1 - np.exp(-0.25 * time))
-
     n3 = 0.3 + 0.5 * sigmoid(time, center=7, slope=1.5)
     n3 = np.clip(n3, 0, 1.0)
 
-    baseline = 0.7
-    tcf7l2 = baseline + 0.6 * (1 - np.exp(-0.18 * time))
-    tcf7l2 -= 0.35 * sigmoid(time, center=7, slope=1.5)
-    tcf7l2 = np.clip(tcf7l2, 0.65, 1.0)
+    # -----------------------
+    # GROUP 1: n-6 ONLY
+    # -----------------------
+    tcf7l2_n6 = 0.7 + 0.6 * (1 - np.exp(-0.18 * time))
+    tcf7l2_n6 = np.clip(tcf7l2_n6, 0.65, 1.0)
+    tcf7l2_n6 += np.random.normal(0, 0.03, len(time))
 
+    # -----------------------
+    # GROUP 2: n-6 + n-3
+    # -----------------------
+    tcf7l2_combined = 0.7 + 0.6 * (1 - np.exp(-0.18 * time))
+    tcf7l2_combined -= 0.35 * sigmoid(time, center=7, slope=1.5)
+    tcf7l2_combined = np.clip(tcf7l2_combined, 0.65, 1.0)
+    tcf7l2_combined += np.random.normal(0, 0.03, len(time))
+
+    # Use combined condition for plotting (Experiment 3 focus)
+    tcf7l2 = tcf7l2_combined
+
+    # Insulin (inverse)
     insulin = 1.05 - 0.65 * (tcf7l2 - 0.65)
     insulin = np.clip(insulin, 0.4, 1.0)
-
-    tcf7l2 += np.random.normal(0, 0.03, len(time))
     insulin += np.random.normal(0, 0.03, len(time))
 
+    # Store everything
     all_n6.append(n6)
     all_n3.append(n3)
     all_tcf7l2.append(tcf7l2)
     all_insulin.append(insulin)
 
+    all_tcf7l2_n6.append(tcf7l2_n6)
+    all_tcf7l2_combined.append(tcf7l2_combined)
+
+# -----------------------
+# CONVERT TO ARRAYS
+# -----------------------
 all_n6 = np.array(all_n6)
 all_n3 = np.array(all_n3)
 all_tcf7l2 = np.array(all_tcf7l2)
 all_insulin = np.array(all_insulin)
 
-# -----------------------
-# T-TEST
-# -----------------------
-early = all_tcf7l2[:, :120].flatten()
-late  = all_tcf7l2[:, 120:].flatten()
+all_tcf7l2_n6 = np.array(all_tcf7l2_n6)
+all_tcf7l2_combined = np.array(all_tcf7l2_combined)
 
-t_stat, p_value = ttest_ind(early, late)
+# -----------------------
+# T-TEST (CORRECT VERSION)
+# -----------------------
+group1 = all_tcf7l2_n6.flatten()
+group2 = all_tcf7l2_combined.flatten()
+
+t_stat, p_value = ttest_ind(group1, group2)
 
 print(f"T-statistic: {t_stat:.3f}")
 print(f"P-value: {p_value:.4f}")
+
+# -----------------------
+# MEAN + STD
+# -----------------------
+mean_n6 = np.mean(all_n6, axis=0)
+std_n6 = np.std(all_n6, axis=0)
+
+mean_n3 = np.mean(all_n3, axis=0)
+std_n3 = np.std(all_n3, axis=0)
+
+mean_tcf7l2 = np.mean(all_tcf7l2, axis=0)
+std_tcf7l2 = np.std(all_tcf7l2, axis=0)
+
+mean_insulin = np.mean(all_insulin, axis=0)
+std_insulin = np.std(all_insulin, axis=0)
 
 # -----------------------
 # PLOT
 # -----------------------
 plt.figure(figsize=(14, 7))
 
-plt.plot(time, np.mean(all_n6, axis=0), label="n-6 PUFA")
-plt.plot(time, np.mean(all_n3, axis=0), label="n-3 PUFA")
+plt.plot(time, mean_n6, label="n-6 PUFA", linewidth=2)
+plt.plot(time, mean_n3, label="n-3 PUFA", linewidth=2)
 
-plt.errorbar(time, np.mean(all_tcf7l2, axis=0),
-             yerr=np.std(all_tcf7l2, axis=0),
+plt.errorbar(time, mean_tcf7l2, yerr=std_tcf7l2,
              label="TCF7L2 Activity",
-             fmt='-', capsize=2)
+             fmt='-', capsize=2, linewidth=2)
 
-plt.errorbar(time, np.mean(all_insulin, axis=0),
-             yerr=np.std(all_insulin, axis=0),
-             label="Insulin capacity",
-             fmt='-', capsize=2)
+plt.errorbar(time, mean_insulin, yerr=std_insulin,
+             label="Insulin secretion",
+             fmt='-', capsize=2, linewidth=2)
 
+# Axis labels
 plt.xlabel("Time (hours)", fontsize=18, fontweight="bold")
 plt.ylabel("Relative activity (normalized)", fontsize=18, fontweight="bold")
 
-plt.legend()
+# Ticks
+plt.xticks(fontsize=16, fontweight="bold")
+plt.yticks(fontsize=16, fontweight="bold")
 
+# Legend (bold + italic gene)
 leg = plt.legend(prop={"size": 14})
-
 for text in leg.get_texts():
     if "TCF7L2" in text.get_text():
-        text.set_fontstyle("italic")   # gene rule
-    text.set_fontweight("bold")        # JEI bold rule
+        text.set_fontstyle("italic")
+    text.set_fontweight("bold")
+
+plt.grid(True, linestyle="--", alpha=0.5)
+plt.ylim(0.3, 1.05)
 
 plt.show()
